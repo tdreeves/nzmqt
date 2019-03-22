@@ -11,7 +11,7 @@ set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
 set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/lib")
 
 find_package(Qt5Core REQUIRED)
-find_library(ZMQ_LIBRARY zmq)
+find_package(ZeroMQ REQUIRED)
 find_path(ZMQ_INCLUDE_DIR zmq.hpp)
 
 include_directories(${CMAKE_SOURCE_DIR}/include ${ZMQ_INCLUDE_DIR})
@@ -23,8 +23,9 @@ QT5_WRAP_CPP(nzmqt_HEADERS_MOC
 
 ################################################################################
 
-add_library (nzmqt SHARED src/nzmqt/nzmqt.cpp ${nzmqt_HEADERS_MOC})
-target_link_libraries (nzmqt Qt5::Core ${ZMQ_LIBRARY})
+#add_library (nzmqt SHARED src/nzmqt/nzmqt.cpp ${nzmqt_HEADERS_MOC})
+add_library (nzmqt src/nzmqt/nzmqt.cpp ${nzmqt_HEADERS_MOC})
+target_link_libraries (nzmqt Qt5::Core libzmq)
 set_target_properties(nzmqt PROPERTIES VERSION ${NZMQT_VERSION_STRING})
 
 ################################################################################
@@ -55,8 +56,19 @@ target_link_libraries (nzmqt-test nzmqt)
 
 ################################################################################
 
-install(TARGETS nzmqt DESTINATION lib)
+install(
+ TARGETS nzmqt
+ RUNTIME DESTINATION "bin"
+ LIBRARY DESTINATION "lib"
+ ARCHIVE DESTINATION "lib"
+)
+
 install (DIRECTORY include/nzmqt/ DESTINATION include/nzmqt)
-install(FILES nzmqt-config.cmake nzmqt-config-version.cmake DESTINATION lib/cmake/nzmqt-${NZMQT_VERSION_STRING})
+
+install(
+ FILES nzmqt-config.cmake nzmqt-config-version.cmake
+ #DESTINATION share/cmake/nzmqt-${NZMQT_VERSION_STRING}
+ DESTINATION share/cmake/nzmqt
+)
 
 ################################################################################
