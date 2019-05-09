@@ -1,6 +1,10 @@
 nzmqt - A lightweight C++ Qt binding for 0MQ
 ============================================
 
+This is a fork of the original [nzmqt][] project and all of the included documents have not been updated and may not be accurate.
+
+============================================
+
 [nzmqt][] is a lightweight C++ [Qt][] binding for [0MQ / zeromq][zeromq]. The primary goal of this project is to provide a Qt-ish interface to 0MQ intelligent transport layer library and to integrate it into Qt's event loop seamlessly.
 
 Why use nzmqt

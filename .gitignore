@@ -21,6 +21,8 @@ ui_*.h
 Makefile
 
 # Debug and Release directories (created under Windows, not Linux)
+build/
+rbuild/
 bin/
 Debug/
 Release/

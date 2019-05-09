@@ -1,74 +1,66 @@
-cmake_minimum_required (VERSION 2.6)
+################################################################################
+
+cmake_minimum_required(VERSION 3.13.2 FATAL_ERROR)
+
+################################################################################
+
 project (nzmqt)
 
-# Also hard coded in nzmqt-config-version.cmake
+################################################################################
+
+include(GenerateExportHeader)
+
+################################################################################
+
 set(NZMQT_VERSION_MAJOR 3)
 set(NZMQT_VERSION_MINOR 2)
 set(NZMQT_VERSION_PATCH 1)
 set(NZMQT_VERSION_STRING ${NZMQT_VERSION_MAJOR}.${NZMQT_VERSION_MINOR}.${NZMQT_VERSION_PATCH})
 
-set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
-set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/lib")
+################################################################################
+
+option(ENABLE_TESTS "Build nzmqt test code" OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
+################################################################################
+
+set(OUTPUT_BINDIR ${PROJECT_BINARY_DIR}/bin)
+set(OUTPUT_LIBDIR ${PROJECT_BINARY_DIR}/lib)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_LIBDIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_BINDIR})
+if(WIN32)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_BINDIR})
+else()
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_LIBDIR})
+endif()
+
+################################################################################
+
+set(INSTALL_RUNTIME_DIR "bin")
+if(WIN32)
+    set(INSTALL_LIBRARY_DIR "bin")
+else()
+    set(INSTALL_LIBRARY_DIR "lib")
+endif()
+set(INSTALL_ARCHIVE_DIR "lib")
+set(INSTALL_INCLUDE_DIR "include")
+set(INSTALL_DATA_DIR    "share")
+
+################################################################################
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+
+################################################################################
 
 find_package(Qt5Core REQUIRED)
-find_package(ZeroMQ REQUIRED)
-find_path(ZMQ_INCLUDE_DIR zmq.hpp)
-
-include_directories(${CMAKE_SOURCE_DIR}/include ${ZMQ_INCLUDE_DIR})
-add_definitions(-DNZMQT_LIB -DNZMQT_SHAREDLIB)
-
-QT5_WRAP_CPP(nzmqt_HEADERS_MOC
- include/nzmqt/nzmqt.hpp
-)
+find_package(cppzmq REQUIRED)
 
 ################################################################################
 
-#add_library (nzmqt SHARED src/nzmqt/nzmqt.cpp ${nzmqt_HEADERS_MOC})
-add_library (nzmqt src/nzmqt/nzmqt.cpp ${nzmqt_HEADERS_MOC})
-target_link_libraries (nzmqt Qt5::Core libzmq)
-set_target_properties(nzmqt PROPERTIES VERSION ${NZMQT_VERSION_STRING})
-
-################################################################################
-
-include_directories(${CMAKE_SOURCE_DIR}/src)
-
-set(nzmqt_test_SOURCES
- src/app/main.cpp
-)
-
-set(nzmqt_test_HEADERS
- include/nzmqt/nzmqt.hpp
- src/common/SampleBase.hpp
- src/pubsub/Subscriber.hpp
- src/pubsub/Publisher.hpp
- src/pushpull/Sink.hpp
- src/pushpull/Worker.hpp
- src/pushpull/Ventilator.hpp
- src/reqrep/Requester.hpp
- src/reqrep/Replier.hpp
- src/app/NzmqtApp.hpp
-)
-
-QT5_WRAP_CPP(nzmqt_test_HEADERS_MOC ${nzmqt_test_HEADERS})
-
-add_executable (nzmqt-test ${nzmqt_test_SOURCES} ${nzmqt_test_HEADERS} ${nzmqt_test_HEADERS_MOC})
-target_link_libraries (nzmqt-test nzmqt)
-
-################################################################################
-
-install(
- TARGETS nzmqt
- RUNTIME DESTINATION "bin"
- LIBRARY DESTINATION "lib"
- ARCHIVE DESTINATION "lib"
-)
-
-install (DIRECTORY include/nzmqt/ DESTINATION include/nzmqt)
-
-install(
- FILES nzmqt-config.cmake nzmqt-config-version.cmake
- #DESTINATION share/cmake/nzmqt-${NZMQT_VERSION_STRING}
- DESTINATION share/cmake/nzmqt
-)
+add_subdirectory(src)
 
 ################################################################################

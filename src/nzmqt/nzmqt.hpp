@@ -27,10 +27,11 @@
 #ifndef NZMQT_H
 #define NZMQT_H
 
-#include "nzmqt/global.hpp"
+#include "nzmqt_export.h"
 
 #include <zmq.hpp>
 
+#include <QObject>
 #include <QByteArray>
 #include <QFlag>
 #include <QList>
@@ -71,7 +72,7 @@ namespace nzmqt
     using zmq::version;
 
     // This class wraps ZMQ's message structure.
-    class NZMQT_API ZMQMessage : private zmq::message_t
+    class NZMQT_EXPORT ZMQMessage : private zmq::message_t
     {
         friend class ZMQSocket;
 
@@ -88,13 +89,13 @@ namespace nzmqt
 
         using super::rebuild;
 
-        void move(ZMQMessage* msg_);
+        void move(ZMQMessage& msg_);
 
         using super::copy;
 
         using super::more;
 
-        void clone(ZMQMessage* msg_);
+        //void clone(ZMQMessage* msg_);
 
         using super::data;
 
@@ -108,7 +109,7 @@ namespace nzmqt
     // This class cannot be instantiated. Its purpose is to serve as an
     // intermediate base class that provides Qt-based convenience methods
     // to subclasses.
-    class NZMQT_API ZMQSocket : public QObject, private zmq::socket_t
+    class NZMQT_EXPORT ZMQSocket : public QObject, private zmq::socket_t
     {
         Q_OBJECT
         Q_ENUMS(Type Event SendFlag ReceiveFlag Option)
@@ -323,7 +324,7 @@ namespace nzmqt
 
 
     // This class is an abstract base class for concrete implementations.
-    class NZMQT_API ZMQContext : public QObject, private zmq::context_t
+    class NZMQT_EXPORT ZMQContext : public QObject, private zmq::context_t
     {
         Q_OBJECT
 
@@ -405,7 +406,7 @@ namespace nzmqt
 
     // An instance of this class cannot directly be created. Use one
     // of the 'PollingZMQContext::createSocket()' factory methods instead.
-    class NZMQT_API PollingZMQSocket : public ZMQSocket
+    class NZMQT_EXPORT PollingZMQSocket : public ZMQSocket
     {
         Q_OBJECT
 
@@ -417,7 +418,7 @@ namespace nzmqt
         PollingZMQSocket(PollingZMQContext* context_, Type type_);
     };
 
-    class NZMQT_API PollingZMQContext : public ZMQContext, public QRunnable
+    class NZMQT_EXPORT PollingZMQContext : public ZMQContext, public QRunnable
     {
         Q_OBJECT
 
@@ -482,7 +483,7 @@ namespace nzmqt
 
     // An instance of this class cannot directly be created. Use one
     // of the 'SocketNotifierZMQContext::createSocket()' factory methods instead.
-    class NZMQT_API SocketNotifierZMQSocket : public ZMQSocket
+    class NZMQT_EXPORT SocketNotifierZMQSocket : public ZMQSocket
     {
         Q_OBJECT
 
@@ -513,7 +514,7 @@ namespace nzmqt
         QSocketNotifier *socketNotifyWrite_;
     };
 
-    class NZMQT_API SocketNotifierZMQContext : public ZMQContext
+    class NZMQT_EXPORT SocketNotifierZMQContext : public ZMQContext
     {
         Q_OBJECT
 
@@ -537,7 +538,7 @@ namespace nzmqt
         SocketNotifierZMQSocket* createSocketInternal(ZMQSocket::Type type_) override;
     };
 
-    NZMQT_API inline ZMQContext* createDefaultContext(QObject* parent_ = nullptr, int io_threads_ = NZMQT_DEFAULT_IOTHREADS)
+    NZMQT_EXPORT inline ZMQContext* createDefaultContext(QObject* parent_ = nullptr, int io_threads_ = NZMQT_DEFAULT_IOTHREADS)
     {
         return new NZMQT_DEFAULT_ZMQCONTEXT_IMPLEMENTATION(parent_, io_threads_);
     }
@@ -547,10 +548,5 @@ namespace nzmqt
 Q_DECLARE_METATYPE(QList<QByteArray>)
 Q_DECLARE_METATYPE(QList< QList<QByteArray> >)
 Q_DECLARE_METATYPE(nzmqt::ZMQSocket::SendFlags)
-
-
-#if !defined(NZMQT_LIB)
- #include "nzmqt/impl.hpp"
-#endif
 
 #endif // NZMQT_H
