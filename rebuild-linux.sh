@@ -46,8 +46,6 @@ done
 
 # --------------------------------------------------------------------------------
 
-# Note: Prebuild Qt on Linux does not include udev support for gamepad hotplug support.
-
 abe_prefix=$HOME/abe/prefix
 #qt5_prefix=$HOME/Qt5.12.2/5.12.2/gcc_64
 qt5_prefix=$abe_prefix
