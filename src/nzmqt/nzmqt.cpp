@@ -337,6 +337,14 @@ bool ZMQSocket::isConnected()
     return const_cast<ZMQSocket*>(this)->connected();
 }
 
+QByteArray ZMQSocket::lastEndpoint() const
+{
+    char idbuf[1024] = "\0";
+    size_t size = sizeof(idbuf);
+    getOption(OPT_LAST_ENDPOINT, idbuf, &size);
+    return QByteArray(idbuf);
+}
+
 /*
  * ZMQContext
  */

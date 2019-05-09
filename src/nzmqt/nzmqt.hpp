@@ -123,15 +123,15 @@ namespace nzmqt
     public:
         enum Type
         {
+            TYP_PAIR = ZMQ_PAIR,
             TYP_PUB = ZMQ_PUB,
             TYP_SUB = ZMQ_SUB,
-            TYP_PUSH = ZMQ_PUSH,
-            TYP_PULL = ZMQ_PULL,
             TYP_REQ = ZMQ_REQ,
             TYP_REP = ZMQ_REP,
             TYP_DEALER = ZMQ_DEALER,
             TYP_ROUTER = ZMQ_ROUTER,
-            TYP_PAIR = ZMQ_PAIR,
+            TYP_PULL = ZMQ_PULL,
+            TYP_PUSH = ZMQ_PUSH,
             TYP_XPUB = ZMQ_XPUB,
             TYP_XSUB = ZMQ_XSUB
         };
@@ -165,6 +165,7 @@ namespace nzmqt
             OPT_FD = ZMQ_FD,
             OPT_EVENTS = ZMQ_EVENTS,
             OPT_MAXMSGSIZE = ZMQ_MAXMSGSIZE,
+            OPT_LAST_ENDPOINT = ZMQ_LAST_ENDPOINT,
 
             // Set only.
             OPT_SUBSCRIBE = ZMQ_SUBSCRIBE,
@@ -294,6 +295,8 @@ namespace nzmqt
         void setReceiveHighWaterMark(int value_);
 
         bool isConnected();
+
+        QByteArray lastEndpoint() const;
 
     signals:
         void messageReceived(const QList<QByteArray>&);
