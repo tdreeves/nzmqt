@@ -10,7 +10,7 @@ set(nzmqt_SOURCES
 
 add_library (nzmqt ${nzmqt_HEADERS} ${nzmqt_SOURCES})
 target_link_libraries (nzmqt cppzmq Qt5::Core)
-target_include_directories(nzmqt PRIVATE ${PROJECT_BINARY_DIR})
+#target_include_directories(nzmqt PRIVATE ${PROJECT_BINARY_DIR})
 
 generate_export_header(nzmqt)
 ################################################################################

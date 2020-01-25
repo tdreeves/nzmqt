@@ -27,7 +27,6 @@
 #include "nzmqt.hpp"
 
 #include <QDebug>
-#include <QMutexLocker>
 #include <QSocketNotifier>
 #include <QTimer>
 #include <climits>
@@ -55,9 +54,9 @@ ZMQMessage::ZMQMessage(void* data_, size_t size_, free_fn *ffn_, void* hint_)
 }
 
 ZMQMessage::ZMQMessage(const QByteArray& b)
-    : super(b.size())
+    : super(size_t(b.size()))
 {
-    memcpy(data(), b.constData(), b.size());
+    memcpy(data(), b.constData(), size_t(b.size()));
 }
 
 void ZMQMessage::move(ZMQMessage& msg_)
@@ -120,7 +119,7 @@ void ZMQSocket::setOption(Option optName_, const char* str_)
 
 void ZMQSocket::setOption(Option optName_, const QByteArray& bytes_)
 {
-    setOption(optName_, bytes_.constData(), bytes_.size());
+    setOption(optName_, bytes_.constData(), size_t(bytes_.size()));
 }
 
 void ZMQSocket::getOption(Option option_, void *optval_, size_t *optvallen_) const
@@ -268,7 +267,7 @@ void ZMQSocket::setIdentity(const QString& name_)
 
 void ZMQSocket::setIdentity(const QByteArray& name_)
 {
-    setOption(OPT_IDENTITY, const_cast<char*>(name_.constData()), name_.size());
+    setOption(OPT_IDENTITY, const_cast<char*>(name_.constData()), size_t(name_.size()));
 }
 
 QByteArray ZMQSocket::identity() const
@@ -398,180 +397,18 @@ const ZMQContext::Sockets& ZMQContext::registeredSockets() const
     return m_sockets;
 }
 
-
-
-/*
- * ZMQDevice
- */
-/*
-ZMQDevice::ZMQDevice(Type type, ZMQSocket* frontend, ZMQSocket* backend)
-    : type_(type)
-    , frontend_(frontend)
-    , backend_(backend)
-{
-}
-
-void ZMQDevice::run()
-{
-    zmq::device(type_, *frontend_, *backend_);
-}
-*/
-
-
-/*
- * PollingZMQSocket
- */
-
-PollingZMQSocket::PollingZMQSocket(PollingZMQContext* context_, Type type_)
-    : super(context_, type_)
-{
-}
-
-
-/*
- * PollingZMQContext
- */
-
-PollingZMQContext::PollingZMQContext(QObject* parent_, int io_threads_)
-    : super(parent_, io_threads_)
-    , m_pollItemsMutex(QMutex::Recursive)
-    , m_interval(NZMQT_POLLINGZMQCONTEXT_DEFAULT_POLLINTERVAL)
-    , m_stopped(false)
-{
-    setAutoDelete(false);
-}
-
-void PollingZMQContext::setInterval(int interval_)
-{
-    m_interval = interval_;
-}
-
-int PollingZMQContext::getInterval() const
-{
-    return m_interval;
-}
-
-void PollingZMQContext::start()
-{
-    m_stopped = false;
-    QTimer::singleShot(0, this, &PollingZMQContext::run);
-}
-
-void PollingZMQContext::stop()
-{
-    m_stopped = true;
-}
-
-bool PollingZMQContext::isStopped() const
-{
-    return m_stopped;
-}
-
-void PollingZMQContext::run()
-{
-    if (m_stopped)
-        return;
-
-    try
-    {
-        poll();
-    }
-    catch (const ZMQException& ex)
-    {
-        qWarning("Exception during poll: %s", ex.what());
-        emit pollError(ex.num(), ex.what());
-    }
-
-    if (!m_stopped)
-        QTimer::singleShot(m_interval, this, &PollingZMQContext::run);
-}
-
-void PollingZMQContext::poll(long timeout_)
-{
-    int cnt;
-    do {
-        QMutexLocker lock(&m_pollItemsMutex);
-
-        if (m_pollItems.empty())
-            return;
-
-        cnt = zmq::poll(&m_pollItems[0], m_pollItems.size(), timeout_);
-        Q_ASSERT_X(cnt >= 0, Q_FUNC_INFO, "A value < 0 should be reflected by an exception.");
-        if (0 == cnt)
-            return;
-
-        PollItems::iterator poIt = m_pollItems.begin();
-        ZMQContext::Sockets::const_iterator soIt = registeredSockets().begin();
-        int i = 0;
-        while (i < cnt && poIt != m_pollItems.end())
-        {
-            if (poIt->revents & ZMQSocket::EVT_POLLIN)
-            {
-                PollingZMQSocket* socket = static_cast<PollingZMQSocket*>(*soIt);
-                QList<QByteArray> && message = socket->receiveMessage();
-                socket->messageReceived(std::move(message));
-                i++;
-            }
-            ++soIt;
-            ++poIt;
-        }
-    } while (cnt > 0);
-}
-
-PollingZMQSocket* PollingZMQContext::createSocketInternal(ZMQSocket::Type type_)
-{
-    return new PollingZMQSocket(this, type_);
-}
-
-void PollingZMQContext::registerSocket(ZMQSocket* socket_)
-{
-    pollitem_t pollItem = { *socket_, 0, ZMQSocket::EVT_POLLIN, 0 };
-
-    QMutexLocker lock(&m_pollItemsMutex);
-
-    m_pollItems.push_back(pollItem);
-
-    super::registerSocket(socket_);
-}
-
-void PollingZMQContext::unregisterSocket(ZMQSocket* socket_)
-{
-    QMutexLocker lock(&m_pollItemsMutex);
-
-    PollItems::iterator poIt = m_pollItems.begin();
-    ZMQContext::Sockets::const_iterator soIt = registeredSockets().begin();
-    while (soIt != registeredSockets().end())
-    {
-        if (*soIt == socket_)
-        {
-            m_pollItems.erase(poIt);
-            break;
-        }
-        ++soIt;
-        ++poIt;
-    }
-
-    super::unregisterSocket(socket_);
-}
-
-
-
 /*
  * SocketNotifierZMQSocket
  */
 
 SocketNotifierZMQSocket::SocketNotifierZMQSocket(ZMQContext* context_, Type type_)
     : super(context_, type_)
-    , socketNotifyRead_(0)
-    , socketNotifyWrite_(0)
+    , socketNotifyRead_(nullptr)
 {
     qintptr fd = fileDescriptor();
 
     socketNotifyRead_ = new QSocketNotifier(fd, QSocketNotifier::Read, this);
     QObject::connect(socketNotifyRead_, &QSocketNotifier::activated, this, &SocketNotifierZMQSocket::socketReadActivity);
-
-    socketNotifyWrite_ = new QSocketNotifier(fd, QSocketNotifier::Write, this);
-    QObject::connect(socketNotifyWrite_, &QSocketNotifier::activated, this, &SocketNotifierZMQSocket::socketWriteActivity);
 }
 
 SocketNotifierZMQSocket::~SocketNotifierZMQSocket()
@@ -582,7 +419,6 @@ SocketNotifierZMQSocket::~SocketNotifierZMQSocket()
 void SocketNotifierZMQSocket::close()
 {
     socketNotifyRead_->deleteLater();
-    socketNotifyWrite_->deleteLater();
     super::close();
 }
 
@@ -607,29 +443,6 @@ void SocketNotifierZMQSocket::socketReadActivity()
     socketNotifyRead_->setEnabled(true);
 }
 
-void SocketNotifierZMQSocket::socketWriteActivity()
-{
-    socketNotifyWrite_->setEnabled(false);
-
-    try
-    {
-        while (isConnected() && (events() & EVT_POLLIN))
-        {
-            const QList<QByteArray> & message = receiveMessage();
-            emit messageReceived(message);
-        }
-    }
-    catch (const ZMQException& ex)
-    {
-        qWarning("Exception during write: %s", ex.what());
-        emit notifierError(ex.num(), ex.what());
-    }
-
-    socketNotifyWrite_->setEnabled(true);
-}
-
-
-
 /*
  * SocketNotifierZMQContext
  */
@@ -639,24 +452,10 @@ SocketNotifierZMQContext::SocketNotifierZMQContext(QObject* parent_, int io_thre
 {
 }
 
-void SocketNotifierZMQContext::start()
-{
-}
-
-void SocketNotifierZMQContext::stop()
-{
-}
-
-bool SocketNotifierZMQContext::isStopped() const
-{
-    return false;
-}
-
 SocketNotifierZMQSocket* SocketNotifierZMQContext::createSocketInternal(ZMQSocket::Type type_)
 {
     SocketNotifierZMQSocket *socket = new SocketNotifierZMQSocket(this, type_);
-    connect(socket, &SocketNotifierZMQSocket::notifierError,
-            this, &SocketNotifierZMQContext::notifierError);
+    connect(socket, &SocketNotifierZMQSocket::notifierError, this, &SocketNotifierZMQContext::notifierError);
     return socket;
 }
 

@@ -93,10 +93,11 @@ protected slots:
             }
 
             QString command = args[1];
-            SampleBase* commandImpl = 0;
+            SampleBase* commandImpl = nullptr;
 
-            ZMQContext* context = createDefaultContext(this);
-            context->start();
+            ZMQContext* context = new SocketNotifierZMQContext(this);
+
+//            context->start();
 
             if ("pubsub-publisher" == command)
             {

@@ -24,10 +24,28 @@
 // authors and should not be interpreted as representing official policies, either expressed
 // or implied, of Johann Duscher.
 
+// --------------------------------------------------------------------------------
+// Jan 2020 : https://github.com/tdreeves/nzmqt
+
+// The original code is undergoing a fairly major rewrite at https://github.com/tdreeves/nzmqt
+// This is work in progress and I have not yet done all I intend to do.
+// Simplify, Simplify, Simplify.
+// I removed all the thread based polling code. QSocketNotifier is the way to go.
+// I removed QSocketNotifier::Write code as it was not needed and continually just consuming CPU.
+// I will update with ZeroMQ's newer C++11 support and remove deprecation warnings.
+// I will be adding radio/dish support.
+
+// I will collapse the now not needed and confusing "SocketNotifierZMQSocket : public ZMQSocket" and
+// "SocketNotifierZMQContext : public ZMQContext" class structure and just put everthing
+// in ZMQSocket and ZMQContext.
+
+// --------------------------------------------------------------------------------
+
+
 #ifndef NZMQT_H
 #define NZMQT_H
 
-#include "nzmqt_export.h"
+#include "nzmqt/nzmqt_export.h"
 
 #include <zmq.hpp>
 
@@ -36,28 +54,11 @@
 #include <QFlag>
 #include <QList>
 #include <QMetaType>
-#include <QMutex>
 #include <QObject>
 #include <QRunnable>
 #include <QVector>
 
 #include <type_traits>
-
-// Define default context implementation to be used.
-#ifndef NZMQT_DEFAULT_ZMQCONTEXT_IMPLEMENTATION
-    #define NZMQT_DEFAULT_ZMQCONTEXT_IMPLEMENTATION PollingZMQContext
-    //#define NZMQT_DEFAULT_ZMQCONTEXT_IMPLEMENTATION SocketNotifierZMQContext
-#endif
-
-// Define default number of IO threads to be used by ZMQ.
-#ifndef NZMQT_DEFAULT_IOTHREADS
-    #define NZMQT_DEFAULT_IOTHREADS 4
-#endif
-
-// Define default poll interval for polling-based implementation.
-#ifndef NZMQT_POLLINGZMQCONTEXT_DEFAULT_POLLINTERVAL
-    #define NZMQT_POLLINGZMQCONTEXT_DEFAULT_POLLINTERVAL 10 /* msec */
-#endif
 
 class QSocketNotifier;
 
@@ -83,7 +84,7 @@ namespace nzmqt
 
         ZMQMessage(size_t size_);
 
-        ZMQMessage(void* data_, size_t size_, free_fn *ffn_, void* hint_ = 0);
+        ZMQMessage(void* data_, size_t size_, free_fn *ffn_, void* hint_ = nullptr);
 
         ZMQMessage(const QByteArray& b);
 
@@ -170,15 +171,9 @@ namespace nzmqt
             // Set only.
             OPT_SUBSCRIBE = ZMQ_SUBSCRIBE,
             OPT_UNSUBSCRIBE = ZMQ_UNSUBSCRIBE,
-#ifdef ZMQ_IMMEDIATE
             OPT_IMMEDIATE = ZMQ_IMMEDIATE,
-#endif
-#ifdef ZMQ_REQ_CORRELATE
             OPT_REQ_CORRELATE = ZMQ_REQ_CORRELATE,
-#endif
-#ifdef ZMQ_REQ_RELAXED
             OPT_REQ_RELAXED = ZMQ_REQ_RELAXED,
-#endif
 
             // Get and set.
             OPT_AFFINITY = ZMQ_AFFINITY,
@@ -195,15 +190,9 @@ namespace nzmqt
             OPT_RCVHWM = ZMQ_RCVHWM,
             OPT_SNDTIMEO = ZMQ_SNDTIMEO,
             OPT_RCVTIMEO = ZMQ_RCVTIMEO,
-#ifdef ZMQ_IPV6
             OPT_IPV6 = ZMQ_IPV6,
-#endif
-#ifdef ZMQ_CONFLATE
             OPT_CONFLATE = ZMQ_CONFLATE,
-#endif
-#ifdef ZMQ_TOS
             OPT_TOS = ZMQ_TOS,
-#endif
         };
 
         ~ZMQSocket();
@@ -326,6 +315,8 @@ namespace nzmqt
     Q_DECLARE_OPERATORS_FOR_FLAGS(ZMQSocket::ReceiveFlags)
 
 
+    class SocketNotifierZMQSocket;
+
     // This class is an abstract base class for concrete implementations.
     class NZMQT_EXPORT ZMQContext : public QObject, private zmq::context_t
     {
@@ -337,7 +328,7 @@ namespace nzmqt
         friend class ZMQSocket;
 
     public:
-        ZMQContext(QObject* parent_ = nullptr, int io_threads_ = NZMQT_DEFAULT_IOTHREADS);
+        ZMQContext(QObject* parent_ = nullptr, int io_threads_ = 1);
 
         // Deleting children is necessary, because otherwise the children are deleted after the context
         // which results in a blocking state. So we delete the children before the zmq::context_t
@@ -353,15 +344,6 @@ namespace nzmqt
         // belongs to the same thread as the socket instance itself (as it is required
         // by Qt). Otherwise, you will encounter strange errors.
         ZMQSocket* createSocket(ZMQSocket::Type type_, QObject* parent_ = nullptr);
-
-        // Start watching for incoming messages.
-        virtual void start() = 0;
-
-        // Stop watching for incoming messages.
-        virtual void stop() = 0;
-
-        // Indicates if watching for incoming messages is enabled.
-        virtual bool isStopped() const = 0;
 
     protected:
         typedef QVector<ZMQSocket*> Sockets;
@@ -379,110 +361,6 @@ namespace nzmqt
     private:
         Sockets m_sockets;
     };
-
-/*
-    class ZMQDevice : public QObject, public QRunnable
-    {
-        Q_OBJECT
-        Q_ENUMS(Type)
-
-    public:
-        enum Type
-        {
-            TYP_QUEUE = ZMQ_QUEUE,
-            TYP_FORWARDED = ZMQ_FORWARDER,
-            TYP_STREAMER = ZMQ_STREAMER
-        };
-
-        ZMQDevice(Type type, ZMQSocket* frontend, ZMQSocket* backend);
-
-        void run();
-
-    private:
-        Type type_;
-        ZMQSocket* frontend_;
-        ZMQSocket* backend_;
-    };
-*/
-
-    class PollingZMQContext;
-
-    // An instance of this class cannot directly be created. Use one
-    // of the 'PollingZMQContext::createSocket()' factory methods instead.
-    class NZMQT_EXPORT PollingZMQSocket : public ZMQSocket
-    {
-        Q_OBJECT
-
-        typedef ZMQSocket super;
-
-        friend class PollingZMQContext;
-
-    protected:
-        PollingZMQSocket(PollingZMQContext* context_, Type type_);
-    };
-
-    class NZMQT_EXPORT PollingZMQContext : public ZMQContext, public QRunnable
-    {
-        Q_OBJECT
-
-        typedef ZMQContext super;
-
-    public:
-        PollingZMQContext(QObject* parent_ = nullptr, int io_threads_ = NZMQT_DEFAULT_IOTHREADS);
-
-        // Sets the polling interval.
-        // Note that the interval does not denote the time the zmq::poll() function will
-        // block in order to wait for incoming messages. Instead, it denotes the time in-between
-        // consecutive zmq::poll() calls.
-        void setInterval(int interval_);
-
-        int getInterval() const;
-
-        // Starts the polling process by scheduling a call to the 'run()' method into Qt's event loop.
-        void start() override;
-
-        // Stops the polling process in the sense that no further 'run()' calls will be scheduled into
-        // Qt's event loop.
-        void stop() override;
-
-        bool isStopped() const override;
-
-    public slots:
-        // If the polling process is not stopped (by a previous call to the 'stop()' method) this
-        // method will call the 'poll()' method once and re-schedule a subsequent call to this method
-        // using the current polling interval.
-        void run() override;
-
-        // This method will poll on all currently available poll-items (known ZMQ sockets)
-        // using the given timeout to wait for incoming messages. Note that this timeout has
-        // nothing to do with the polling interval. Instead, the poll method will block the current
-        // thread by waiting at most the specified amount of time for incoming messages.
-        // This method is public because it can be called directly if you need to.
-        void poll(long timeout_ = 0);
-
-    signals:
-        // This signal will be emitted by run() method if a call to poll(...) method
-        // results in an exception.
-        void pollError(int errorNum, const QString& errorMsg);
-
-    protected:
-        PollingZMQSocket* createSocketInternal(ZMQSocket::Type type_) override;
-
-        // Add the given socket to list list of poll-items.
-        void registerSocket(ZMQSocket* socket_) override;
-
-        // Remove the given socket object from the list of poll-items.
-        void unregisterSocket(ZMQSocket* socket_) override;
-
-    private:
-        typedef QVector<pollitem_t> PollItems;
-
-        PollItems m_pollItems;
-        QMutex m_pollItemsMutex;
-        int m_interval;
-        volatile bool m_stopped;
-    };
-
 
     // An instance of this class cannot directly be created. Use one
     // of the 'SocketNotifierZMQContext::createSocket()' factory methods instead.
@@ -510,11 +388,9 @@ namespace nzmqt
 
     protected slots:
         void socketReadActivity();
-        void socketWriteActivity();
 
     private:
         QSocketNotifier *socketNotifyRead_;
-        QSocketNotifier *socketNotifyWrite_;
     };
 
     class NZMQT_EXPORT SocketNotifierZMQContext : public ZMQContext
@@ -524,13 +400,7 @@ namespace nzmqt
         typedef ZMQContext super;
 
     public:
-        SocketNotifierZMQContext(QObject* parent_ = nullptr, int io_threads_ = NZMQT_DEFAULT_IOTHREADS);
-
-        void start() override;
-
-        void stop() override;
-
-        bool isStopped() const override;
+        SocketNotifierZMQContext(QObject* parent_ = nullptr, int io_threads_ = 1);
 
     signals:
         // This signal will be emitted by the socket notifier callback if a call
@@ -541,10 +411,6 @@ namespace nzmqt
         SocketNotifierZMQSocket* createSocketInternal(ZMQSocket::Type type_) override;
     };
 
-    NZMQT_EXPORT inline ZMQContext* createDefaultContext(QObject* parent_ = nullptr, int io_threads_ = NZMQT_DEFAULT_IOTHREADS)
-    {
-        return new NZMQT_DEFAULT_ZMQCONTEXT_IMPLEMENTATION(parent_, io_threads_);
-    }
 }
 
 // Declare metatypes for using them in Qt signals.

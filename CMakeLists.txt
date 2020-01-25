@@ -13,8 +13,8 @@ include(GenerateExportHeader)
 ################################################################################
 
 set(NZMQT_VERSION_MAJOR 3)
-set(NZMQT_VERSION_MINOR 2)
-set(NZMQT_VERSION_PATCH 1)
+set(NZMQT_VERSION_MINOR 5)
+set(NZMQT_VERSION_PATCH 0)
 set(NZMQT_VERSION_STRING ${NZMQT_VERSION_MAJOR}.${NZMQT_VERSION_MINOR}.${NZMQT_VERSION_PATCH})
 
 ################################################################################

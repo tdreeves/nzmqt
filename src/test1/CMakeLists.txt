@@ -1,3 +1,5 @@
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+
 set(nzmqt_test1_SOURCES
     app/main.cpp
 )
@@ -16,4 +18,4 @@ set(nzmqt_test1_HEADERS
 
 add_executable (nzmqt-test1 ${nzmqt_test1_SOURCES} ${nzmqt_test1_HEADERS})
 target_link_libraries (nzmqt-test1 nzmqt)
-target_include_directories(nzmqt-test1 PRIVATE ${CMAKE_SOURCE_DIR})
+#target_include_directories(nzmqt-test1 PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR})
